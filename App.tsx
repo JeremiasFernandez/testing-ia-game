@@ -106,10 +106,11 @@ const buildKnockoutMatches = (pIds: string[], stage: 'knockout' | 'league' | 'gr
       for (let j = 0; j < prevRound.length; j += 2) {
         const char1Id = prevRound[j].winnerId;
         const char2Id = prevRound[j + 1]?.winnerId || null;
-        
+
+        const leg1Id = crypto.randomUUID();
         // Ida
         nextRound.push({
-          id: crypto.randomUUID(),
+          id: leg1Id,
           char1Id,
           char2Id,
           winnerId: null,
@@ -137,6 +138,10 @@ const buildKnockoutMatches = (pIds: string[], stage: 'knockout' | 'league' | 'gr
             legNumber: 2
           });
         }
+
+        // Vincula ambas piernas con el partido de la siguiente ronda para que el ganador avance
+        if (prevRound[j]) prevRound[j].nextMatchId = leg1Id;
+        if (prevRound[j + 1]) prevRound[j + 1].nextMatchId = leg1Id;
       }
       matches.push(...nextRound);
       prevRound = nextRound.filter(m => m.legNumber === 2 || !m.legNumber);
@@ -301,16 +306,16 @@ const getTwoLegsWinner = (legMatches: TournamentMatch[]): string | null => {
   const leg1 = legMatches.find(m => m.legNumber === 1);
   const leg2 = legMatches.find(m => m.legNumber === 2);
   if (!leg1 || !leg2 || !leg1.winnerId || !leg2.winnerId) return null;
-  if (!leg1.score1 || leg1.score2 === undefined || !leg2.score1 || leg2.score2 === undefined) return null;
-  
-  const totalDiff1 = Math.abs((leg1.score1 - leg1.score2) + (leg2.score2 - leg2.score1));
-  const totalDiff2 = Math.abs((leg1.score2 - leg1.score1) + (leg2.score1 - leg2.score2));
-  
-  if (Math.abs(totalDiff1 - totalDiff2) > 0) {
-    return totalDiff1 > totalDiff2 ? leg1.char1Id : leg1.char2Id;
-  }
-  // If tied, needs third match - for now just return null to trigger tiebreaker
-  return null;
+  if (leg1.score1 === null || leg1.score2 === null || leg2.score1 === null || leg2.score2 === null) return null;
+
+  const total1 = leg1.score1 + leg2.score2;
+  const total2 = leg1.score2 + leg2.score1;
+
+  if (total1 > total2) return leg1.char1Id;
+  if (total2 > total1) return leg1.char2Id;
+
+  // Desempate simple: se queda con el ganador de la vuelta; si no existe, el de la ida
+  return leg2.winnerId || leg1.winnerId || null;
 };
 
 // --- Main App Component ---
@@ -881,6 +886,24 @@ export default function App() {
                     }
                     return nm;
                 });
+            }
+
+            // Para ida/vuelta: solo avanzamos al ganador agregado cuando ambas piernas terminaron
+            if (t.settings?.twoLegs && playedMatch) {
+              const legGroup = nextMatches.filter(m => m.stage === playedMatch.stage && m.round === playedMatch.round && m.position === playedMatch.position && m.legNumber);
+              const legsReady = legGroup.length === 2 && legGroup.every(m => m.winnerId && m.score1 !== null && m.score2 !== null);
+              if (legsReady) {
+                const aggWinner = getTwoLegsWinner(legGroup);
+                if (aggWinner && playedMatch.nextMatchId) {
+                  nextMatches = nextMatches.map(nm => {
+                    if (nm.id === playedMatch.nextMatchId) {
+                      if (nm.char1Id === null) return { ...nm, char1Id: aggWinner };
+                      if (nm.char2Id === null) return { ...nm, char2Id: aggWinner };
+                    }
+                    return nm;
+                  });
+                }
+              }
             }
 
             if (t.format === 'liga' || t.format === 'copa_liga') {
@@ -1539,8 +1562,8 @@ export default function App() {
       )}
 
       {selectedChar && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-center justify-center z-[110] p-4">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden relative">
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md flex items-start md:items-center justify-center z-[110] p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-2xl rounded-[3rem] shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <div className={`h-40 bg-gradient-to-br ${getRarityColor(selectedChar.rarity)} relative overflow-hidden`}>
                  <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
                  <button onClick={() => setSelectedChar(null)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors z-20"><i className="fa-solid fa-xmark"></i></button>
