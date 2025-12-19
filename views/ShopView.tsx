@@ -18,7 +18,7 @@ export default function ShopView({
           return (
             <div key={offer.level} className="bg-slate-800 p-8 rounded-[2rem] border border-slate-700 flex flex-col items-center text-center group hover:border-indigo-500 transition-all shadow-xl">
               <div className="w-20 h-20 bg-indigo-500/10 rounded-full flex items-center justify-center text-indigo-400 font-black text-3xl mb-4 border border-indigo-500/20">Lv {offer.level}</div>
-              <h3 className="text-white font-black text-xl uppercase italic">Comandante Élite</h3>
+              <h3 className="text-white font-black text-xl uppercase italic">Heroe</h3>
               <p className="text-slate-500 text-xs mt-2 italic">Entrenado con {skills} habilidades.</p>
               <div className="mt-8 w-full pt-8 border-t border-slate-700 space-y-4">
                 <div className="flex items-center justify-center gap-2">

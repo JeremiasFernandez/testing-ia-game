@@ -23,7 +23,15 @@ export const LeagueSection: React.FC<{ characters: Character[]; div: number }> =
             {table.map((char, idx) => (
               <tr key={char.id} className="hover:bg-slate-800/50 transition-colors group">
                 <td className="px-3 sm:px-6 py-4">
-                  <span className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs ${idx === 0 ? 'bg-amber-500 text-slate-900' : 'bg-slate-700 text-slate-400'}`}>{idx+1}</span>
+                  <span className={`w-6 h-6 rounded flex items-center justify-center font-black text-xs ${
+                    div === 1 && idx === 0
+                      ? 'bg-amber-500 text-slate-900'
+                      : div === 1 && idx === table.length - 1 && table.length > 0
+                        ? 'bg-rose-500 text-white'
+                        : div === 2 && idx < 2
+                          ? 'bg-emerald-500 text-slate-900'
+                          : 'bg-slate-700 text-slate-400'
+                  }`}>{idx+1}</span>
                 </td>
                 <td className="px-3 sm:px-6 py-4">
                   <div className="flex items-center gap-2 sm:gap-3">

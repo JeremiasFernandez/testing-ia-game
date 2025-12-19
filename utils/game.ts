@@ -7,7 +7,8 @@ export const WORLD_DUEL_REWARD = 80;
 export const FAVOR_COST = 20;
 export const CHAR_COST = 50;
 export const TOURNEY_COST = 300;
-export const LEAGUE_RESET_LIMIT = 100;
+export const TOWER_COST = 100;
+export const LEAGUE_RESET_LIMIT = 50;
 
 export const DIV2_COST = 1000;
 export const DIV3_COST = 2000;
@@ -43,3 +44,16 @@ export const getRarityColor = (rarity: CharacterRarity) => {
     default: return 'from-slate-400 to-slate-500';
   }
 };
+
+// Stadiums: capacity and costs per level
+export const STADIUMS: Array<{ level: number; name: string; capacity: number; cost: number }> = [
+  { level: 1, name: 'Campo', capacity: 200, cost: 0 },
+  { level: 2, name: 'Plaza', capacity: 500, cost: 100 },
+  { level: 3, name: 'Escenario', capacity: 1000, cost: 500 },
+  { level: 4, name: 'Iglesia', capacity: 2000, cost: 600 },
+  { level: 5, name: 'Estadio Libertador', capacity: 5000, cost: 1500 },
+  { level: 6, name: 'Coliseo', capacity: 10000, cost: 5000 },
+  { level: 7, name: 'Coliseo Definitivo', capacity: Number.MAX_SAFE_INTEGER, cost: 20000 }
+];
+
+export const getStadiumByLevel = (lv: number) => STADIUMS.find(s => s.level === lv) || STADIUMS[0];

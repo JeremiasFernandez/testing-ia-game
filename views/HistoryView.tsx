@@ -17,6 +17,12 @@ export default function HistoryView({ history, characters }: { history: BattleRe
               <span className="mx-4 text-slate-800">-</span>
               <span className={record.winnerId !== record.char1Id ? 'text-rose-400' : 'text-slate-600'}>{record.score2}</span>
             </span>
+            {typeof record.audience === 'number' && (
+              <span className="mt-2 text-xs font-bold text-slate-400">
+                <i className="fa-solid fa-users mr-2"></i>
+                Audiencia: {record.audience}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-4 flex-1 justify-end">
             <span className="font-black uppercase italic text-slate-200">{record.char2Name || characters.find(c => c.id === record.char2Id)?.name || 'NPC'}</span>

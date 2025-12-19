@@ -13,6 +13,7 @@ export default function HallView({ characters }: { characters: Character[] }) {
     { title: 'Victorias', data: [...characters].sort((a,b) => b.stats.wins - a.stats.wins).slice(0, 5), stat: (c: Character) => c.stats.wins },
     { title: 'Nivel Máximo', data: [...characters].sort((a,b) => b.level === a.level ? b.xp - a.xp : b.level - a.level).slice(0, 5), stat: (c: Character) => `Lv ${c.level}` },
     { title: 'Winrate', data: [...characters].filter(c => c.stats.wins + c.stats.losses > 0).sort((a,b) => (Number(calculateWinrate(b))) - (Number(calculateWinrate(a)))).slice(0, 5), stat: (c: Character) => `${calculateWinrate(c)}%` },
+    { title: 'Torre del Terror', data: [...characters].filter(c => c.stats.towerLevel > 0).sort((a,b) => b.stats.towerLevel - a.stats.towerLevel).slice(0, 5), stat: (c: Character) => `Nivel ${c.stats.towerLevel}/10` },
   ];
 
   return (
