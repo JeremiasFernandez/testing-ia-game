@@ -14,11 +14,11 @@ export default function CharsView({
 }) {
   return (
     <div className="space-y-8">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-3xl font-black text-slate-100 uppercase italic">Escuadrón</h2>
-        <button onClick={onCreateClick} className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-2xl font-black shadow-lg shadow-indigo-600/20 uppercase text-[10px] tracking-widest group">
-          <div className="flex items-center gap-2"><i className="fa-solid fa-plus"></i> Crear Personaje</div>
-          <span className="text-[9px] text-indigo-300 opacity-80">{characters.length < 2 ? 'GRATIS' : `COSTE: ${CHAR_COST}`}</span>
+        <button onClick={onCreateClick} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-2xl font-black shadow-lg shadow-indigo-600/20 uppercase text-[10px] tracking-widest group w-full sm:w-auto">
+          <div className="flex items-center gap-2 justify-center"><i className="fa-solid fa-plus"></i> <span className="hidden sm:inline">Crear Personaje</span><span className="sm:hidden">Crear</span></div>
+          <span className="text-[9px] text-indigo-300 opacity-80">{characters.length < 2 ? 'GRATIS' : `${CHAR_COST}`}</span>
         </button>
       </div>
       {characters.length === 0 ? (
