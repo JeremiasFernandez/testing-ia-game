@@ -1,7 +1,7 @@
 import React from 'react';
 import { Character } from '@/types';
 import XPBar from '@/components/XPBar';
-import { getRarityColor } from '@/utils/game';
+import { getRarityColor, COSMETICS } from '@/utils/game';
 
 export const CharacterCard: React.FC<{ 
   character: Character, 
@@ -17,6 +17,12 @@ export const CharacterCard: React.FC<{
     bar: 'from-indigo-500 to-purple-600', 
     badge: 'bg-indigo-600' 
   };
+
+  // Get equipped cosmetics
+  const equippedCosmetics = character.equippedCosmetics || [];
+  const cosmeticEmojis = equippedCosmetics
+    .map(id => COSMETICS.find(c => c.id === id)?.emoji)
+    .filter(Boolean);
 
   return (
     <div 
@@ -41,6 +47,20 @@ export const CharacterCard: React.FC<{
             alt={character.name} 
             className={`${compact ? 'w-12 h-12' : 'w-20 h-20'} rounded-full border-2 border-slate-700 object-cover relative z-[1]`}
           />
+          {/* Cosméticos Equipados */}
+          {cosmeticEmojis.length > 0 && (
+            <div className={`absolute -top-2 -right-2 flex flex-wrap gap-0.5 max-w-[70px] z-[3]`}>
+              {cosmeticEmojis.map((emoji, idx) => (
+                <div
+                  key={idx}
+                  className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-[10px] border border-amber-300 shadow-lg"
+                  title={`Cosmético equipado`}
+                >
+                  {emoji}
+                </div>
+              ))}
+            </div>
+          )}
           <div className={`absolute -bottom-1 -right-1 ${theme.badge} text-white text-[10px] font-black px-1.5 py-0.5 rounded border border-slate-800 z-[2]`}>
             Lv{character.level}
           </div>

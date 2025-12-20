@@ -1,12 +1,20 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { Character } from '@/types';
-import { FAVOR_PROB_BOOST, INSPIRED_PROB_BOOST } from '@/utils/game';
+import { FAVOR_PROB_BOOST, INSPIRED_PROB_BOOST, COSMETICS } from '@/utils/game';
 import { LEVEL_PROB_BOOST, SKILL_PROB_BOOST } from '@/constants';
 import { soundManager } from '@/utils/soundManager';
 import point1Url from '@/sounds/point1.wav';
 import point2Url from '@/sounds/point2.wav';
 
 type Opponent = Character | { name: string, level: number, avatarUrl: string, skills: any[] };
+
+const getCosmeticEmojis = (char: Character | Opponent): string[] => {
+  if (!('equippedCosmetics' in char)) return [];
+  const equipped = (char as Character).equippedCosmetics || [];
+  return equipped
+    .map(id => COSMETICS.find(c => c.id === id)?.emoji)
+    .filter(Boolean) as string[];
+};
 
 export const BattleModal: React.FC<{
   char1: Character;
@@ -40,6 +48,9 @@ export const BattleModal: React.FC<{
 
     return Math.max(0.1, Math.min(0.9, prob));
   }, [char1, char2, favorId, inspiredSide]);
+
+  const cosmetics1 = getCosmeticEmojis(char1);
+  const cosmetics2 = getCosmeticEmojis(char2);
 
   useEffect(() => {
     let wins1 = 0;
@@ -109,6 +120,16 @@ export const BattleModal: React.FC<{
             <div className={`flex-1 transition-all duration-500 ${wins1 > wins2 ? 'scale-110' : 'opacity-60'} ${lastStrike===1?'animate-pulse':''}`}>
               <div className="relative inline-block">
                 <img src={char1.avatarUrl} className="w-24 h-24 rounded-full mx-auto border-4 border-indigo-500 mb-3 shadow-lg shadow-indigo-500/20" />
+                {/* Cosméticos Char1 */}
+                {cosmetics1.length > 0 && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex flex-wrap gap-0.5 justify-center w-32">
+                    {cosmetics1.map((emoji, idx) => (
+                      <div key={idx} className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-[10px] border border-amber-300">
+                        {emoji}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {inspiredSide === 1 && <span className="absolute -top-2 -right-2 bg-yellow-500 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded-lg animate-pulse">¡INSPIRADO!</span>}
                 {lastStrike===1 && <span className="absolute -bottom-2 -left-2 text-2xl rotate-12 select-none">⚡</span>}
               </div>
@@ -120,6 +141,16 @@ export const BattleModal: React.FC<{
             <div className={`flex-1 transition-all duration-500 ${wins2 > wins1 ? 'scale-110' : 'opacity-60'} ${lastStrike===2?'animate-pulse':''}`}>
               <div className="relative inline-block">
                 <img src={(char2 as any).avatarUrl} className="w-24 h-24 rounded-full mx-auto border-4 border-rose-500 mb-3 shadow-lg shadow-rose-500/20" />
+                {/* Cosméticos Char2 */}
+                {cosmetics2.length > 0 && (
+                  <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 flex flex-wrap gap-0.5 justify-center w-32">
+                    {cosmetics2.map((emoji, idx) => (
+                      <div key={idx} className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-[10px] border border-amber-300">
+                        {emoji}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {inspiredSide === 2 && <span className="absolute -top-2 -right-2 bg-yellow-500 text-slate-900 text-[10px] font-black px-1.5 py-0.5 rounded-lg animate-pulse">¡INSPIRADO!</span>}
                 {lastStrike===2 && <span className="absolute -bottom-2 -left-2 text-2xl -rotate-12 select-none">⚡</span>}
               </div>

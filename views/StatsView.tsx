@@ -1,7 +1,15 @@
 import React from 'react';
 import { Character, BattleRecord } from '@/types';
+import { COSMETICS } from '@/utils/game';
 
 export default function StatsView({ characters, history }: { characters: Character[], history: BattleRecord[] }) {
+  const getCosmeticEmojis = (c: Character): string[] => {
+    const equipped = c.equippedCosmetics || [];
+    return equipped
+      .map(id => COSMETICS.find(cos => cos.id === id)?.emoji)
+      .filter(Boolean) as string[];
+  };
+
   const calculateWinrate = (c: Character) => {
     const total = c.stats.wins + c.stats.losses;
     if (total === 0) return 0;
@@ -119,7 +127,16 @@ export default function StatsView({ characters, history }: { characters: Charact
               {table.data.slice(0, 5).map((c, idx) => (
                 <div key={c.id} className="flex items-center gap-2 bg-slate-900/40 p-1.5 rounded-lg border border-slate-800">
                   <span className="text-slate-600 font-black text-[8px] w-3">#{idx+1}</span>
-                  <img src={c.avatarUrl} className="w-5 h-5 rounded-full border border-slate-700" />
+                  <div className="relative">
+                    <img src={c.avatarUrl} className="w-5 h-5 rounded-full border border-slate-700" />
+                    {getCosmeticEmojis(c).length > 0 && (
+                      <div className="absolute -top-1 -right-1">
+                        <div className="text-[6px] bg-amber-500 rounded-full w-3 h-3 flex items-center justify-center border border-amber-300">
+                          {getCosmeticEmojis(c)[0]}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                   <span className="text-[10px] font-bold text-slate-300 truncate flex-1">{c.name}</span>
                   <span className="text-indigo-400 font-black text-[9px]">{(table.stat as any)(c)}</span>
                 </div>
@@ -136,7 +153,18 @@ export default function StatsView({ characters, history }: { characters: Charact
           {topPoints.map((c, idx) => (
             <div key={c.id} className="flex items-center gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-800">
               <span className="text-slate-500 font-black text-lg min-w-8">#{idx+1}</span>
-              <img src={c.avatarUrl} className="w-10 h-10 rounded-full border-2 border-slate-700" />
+              <div className="relative">
+                <img src={c.avatarUrl} className="w-10 h-10 rounded-full border-2 border-slate-700" />
+                {getCosmeticEmojis(c).length > 0 && (
+                  <div className="absolute -top-1 -right-1 flex flex-wrap gap-0.5">
+                    {getCosmeticEmojis(c).map((emoji, i) => (
+                      <div key={i} className="text-[8px] bg-amber-500 rounded-full w-4 h-4 flex items-center justify-center border border-amber-300">
+                        {emoji}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className="flex-1">
                 <div className="font-bold text-slate-200">{c.name}</div>
                 <div className="text-xs text-slate-400">Lv {c.level}</div>
@@ -174,7 +202,16 @@ export default function StatsView({ characters, history }: { characters: Charact
             .map((r, idx) => (
               <div key={r.char.id} className="bg-slate-900/40 p-4 rounded-xl border border-slate-800 flex items-center gap-3">
                 <span className="text-slate-500 font-black text-lg min-w-6">#{idx+1}</span>
-                <img src={r.char.avatarUrl} className="w-8 h-8 rounded-full border border-slate-700" />
+                <div className="relative">
+                  <img src={r.char.avatarUrl} className="w-8 h-8 rounded-full border border-slate-700" />
+                  {getCosmeticEmojis(r.char).length > 0 && (
+                    <div className="absolute -top-1 -right-1">
+                      <div className="text-[6px] bg-amber-500 rounded-full w-3 h-3 flex items-center justify-center border border-amber-300">
+                        {getCosmeticEmojis(r.char)[0]}
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1">
                   <div className="font-bold text-slate-200 text-sm">{r.char.name}</div>
                   <div className="text-xs text-slate-400">vs {r.rivalName}</div>
@@ -195,7 +232,18 @@ export default function StatsView({ characters, history }: { characters: Charact
             .map((c, idx) => (
               <div key={c.id} className="flex items-center gap-4 bg-slate-900/40 p-4 rounded-xl border border-slate-800">
                 <span className="text-slate-500 font-black text-lg min-w-8">#{idx+1}</span>
-                <img src={c.avatarUrl} className="w-10 h-10 rounded-full border-2 border-slate-700" />
+                <div className="relative">
+                  <img src={c.avatarUrl} className="w-10 h-10 rounded-full border-2 border-slate-700" />
+                  {getCosmeticEmojis(c).length > 0 && (
+                    <div className="absolute -top-1 -right-1 flex flex-wrap gap-0.5">
+                      {getCosmeticEmojis(c).map((emoji, i) => (
+                        <div key={i} className="text-[8px] bg-amber-500 rounded-full w-4 h-4 flex items-center justify-center border border-amber-300">
+                          {emoji}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="flex-1">
                   <div className="font-bold text-slate-200">{c.name}</div>
                   <div className="text-xs text-slate-400">Lv {c.level}</div>

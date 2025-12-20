@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Character } from '@/types';
-import { TOWER_COST } from '@/utils/game';
+import { TOWER_COST, COSMETICS } from '@/utils/game';
 
 export default function TowerView({
   characters,
@@ -12,6 +12,13 @@ export default function TowerView({
   onStartTower: (charId: string) => void;
 }) {
   const [selectedChar, setSelectedChar] = useState<string | null>(null);
+
+  const getCosmeticEmojis = (c: Character): string[] => {
+    const equipped = c.equippedCosmetics || [];
+    return equipped
+      .map(id => COSMETICS.find(cos => cos.id === id)?.emoji)
+      .filter(Boolean) as string[];
+  };
 
   if (tower && tower.inProgress) {
     const char = characters.find(c => c.id === tower.charId);
@@ -74,11 +81,22 @@ export default function TowerView({
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <img 
-                    src={char.avatarUrl} 
-                    alt={char.name} 
-                    className="w-12 h-12 rounded-full border border-slate-600"
-                  />
+                  <div className="relative">
+                    <img 
+                      src={char.avatarUrl} 
+                      alt={char.name} 
+                      className="w-12 h-12 rounded-full border border-slate-600"
+                    />
+                    {getCosmeticEmojis(char).length > 0 && (
+                      <div className="absolute -top-1 -right-1 flex flex-wrap gap-0.5 max-w-[40px]">
+                        {getCosmeticEmojis(char).map((emoji, i) => (
+                          <div key={i} className="text-[6px] bg-amber-500 rounded-full w-3 h-3 flex items-center justify-center border border-amber-300">
+                            {emoji}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <p className="font-bold text-slate-100">{char.name}</p>
                     <p className="text-xs text-slate-500">Nivel {char.level} • Mejor: Nivel {char.stats.towerLevel}</p>

@@ -12,6 +12,15 @@ export type CharacterTheme = {
   badge: string; // Tailwind color classes
 };
 
+export interface Cosmetic {
+  id: string;
+  name: string;
+  type: 'helm' | 'armor' | 'weapon' | 'cloak' | 'aura';
+  description: string;
+  price: number;
+  emoji: string;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -24,6 +33,8 @@ export interface Character {
   skills: Skill[];
   theme?: CharacterTheme; // Visual color theme
   folders?: string[]; // Array of folder names this character belongs to
+  cosmetics?: string[]; // Array of cosmetic IDs owned by this character
+  equippedCosmetics?: string[]; // Currently equipped cosmetic IDs (max 3)
   stats: {
     wins: number;
     losses: number;

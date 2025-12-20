@@ -1,6 +1,24 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Character, BattleRecord, Tournament, TournamentMatch, Skill, CharacterRarity, TournamentFormat, TournamentSettings } from './types';
+import towerpassUrl from '@/sounds/towerpass.wav';
+import celebritiesCSV from './celebrities.csv?raw';
+
+export interface Celebrity {
+  id: string;
+  nombre: string;
+  fama: number;
+}
+
+// Celebrities are loaded from CSV with fixed fama; discovery adds them to the list
+const ALL_CELEBRITIES: Celebrity[] = celebritiesCSV
+  .split('\n')
+  .slice(1)
+  .filter(line => line.trim())
+  .map(line => {
+    const [id, nombre, fama] = line.split(',');
+    return { id: id.trim(), nombre: nombre.trim(), fama: Number(fama.trim()) };
+  });
 import { 
   XP_PER_WIN, 
   BASE_XP_NEEDED, 
@@ -24,7 +42,8 @@ import {
   getRewardForLevel,
   getRarityMultiplier,
   getRarityColor,
-  getStadiumByLevel
+  getStadiumByLevel,
+  STADIUMS
 } from './utils/game';
 import { soundManager } from './utils/soundManager';
 import CharacterCard from './components/CharacterCard';
@@ -40,6 +59,7 @@ import StatsView from './views/StatsView';
 import OrganizerView from './views/OrganizerView';
 import HistoryView from './views/HistoryView';
 import TowerView from './views/TowerView';
+import SettingsView from './views/SettingsView';
 
 // Helpers for tournament formats
 const diffPoints = (a: number, b: number) => Math.abs(a - b);
@@ -321,7 +341,7 @@ const getTwoLegsWinner = (legMatches: TournamentMatch[]): string | null => {
 // --- Main App Component ---
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'chars' | 'battles' | 'tournament' | 'shop' | 'tower' | 'organizer' | 'hall' | 'history'>('chars');
+  const [activeTab, setActiveTab] = useState<'chars' | 'battles' | 'tournament' | 'shop' | 'tower' | 'organizer' | 'hall' | 'history' | 'settings'>('chars');
   const [characters, setCharacters] = useState<Character[]>([]);
   const [history, setHistory] = useState<BattleRecord[]>([]);
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
@@ -360,6 +380,12 @@ export default function App() {
   const [levelUpNotification, setLevelUpNotification] = useState<{ name: string; level: number } | null>(null);
   const [stadiumLevel, setStadiumLevel] = useState<number>(() => Number(localStorage.getItem('arena_stadium_level') || '1'));
   const [reputation, setReputation] = useState<number>(() => Number(localStorage.getItem('arena_reputation') || '100'));
+  const [celebrities, setCelebrities] = useState<Celebrity[]>(() => {
+    const saved = localStorage.getItem('arena_celebrities_v1');
+    if (saved) return JSON.parse(saved);
+    // Start with empty array - celebrities will be discovered through battles
+    return [];
+  });
 
   // Persistence
   useEffect(() => {
@@ -370,6 +396,15 @@ export default function App() {
     const savedDuelCount = localStorage.getItem('arena_duel_count_v8');
     const savedDivs = localStorage.getItem('arena_divs_v8');
     const savedFolders = localStorage.getItem('arena_folders_v8');
+    // One-time migration: clear preloaded celebrities so discovery starts empty
+    const celebsMigrated = localStorage.getItem('arena_celebs_migrated_v1');
+    if (!celebsMigrated) {
+      try {
+        localStorage.removeItem('arena_celebrities_v1');
+        setCelebrities([]);
+        localStorage.setItem('arena_celebs_migrated_v1', '1');
+      } catch {}
+    }
     if (savedChars) {
       const parsed: Character[] = JSON.parse(savedChars);
       // Backfill theme, folders, and new stats for older saves
@@ -415,7 +450,8 @@ export default function App() {
     localStorage.setItem('arena_folders_v8', JSON.stringify(folders));
     localStorage.setItem('arena_stadium_level', stadiumLevel.toString());
     localStorage.setItem('arena_reputation', reputation.toString());
-  }, [characters, history, tournaments, coins, totalDuelsCount, unlockedDivisions, folders, stadiumLevel, reputation]);
+    localStorage.setItem('arena_celebrities_v1', JSON.stringify(celebrities));
+  }, [characters, history, tournaments, coins, totalDuelsCount, unlockedDivisions, folders, stadiumLevel, reputation, celebrities]);
 
   // Cheat Code Handler
   useEffect(() => {
@@ -439,12 +475,58 @@ export default function App() {
 
   // Actions
   const handleUpgradeStadium = () => {
+    // Compute next stadium relative to current to avoid mismatches
     const current = getStadiumByLevel(stadiumLevel);
-    const next = getStadiumByLevel(stadiumLevel + 1);
-    if (!next || next.level === current.level) return alert('Máximo nivel alcanzado.');
+    const currentIndex = STADIUMS.findIndex(s => s.level === current.level);
+    const next = currentIndex >= 0 ? STADIUMS[currentIndex + 1] : undefined;
+    console.log('handleUpgradeStadium', { stadiumLevel, current, currentIndex, next });
+    if (!next) return alert('Máximo nivel alcanzado.');
     if (coins < next.cost) return alert(`Necesitas ${next.cost} monedas.`);
     setCoins(prev => prev - next.cost);
-    setStadiumLevel(prev => prev + 1);
+    setStadiumLevel(next.level);
+  };
+
+  const handleToggleSound = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    soundManager.setEnabled(newState);
+  };
+
+  const handleToggleBgm = () => {
+    const newState = !bgmEnabled;
+    setBgmEnabled(newState);
+    soundManager.setBgmEnabled(newState);
+  };
+
+  const handleResetGame = () => {
+    // Wipe all game state
+    setCharacters([]);
+    setHistory([]);
+    setTournaments([]);
+    setCoins(0);
+    setTotalDuelsCount(0);
+    setUnlockedDivisions(1);
+    setFolders([]);
+    setSelectedFolder(null);
+    setTower(null);
+    setStadiumLevel(1);
+    setReputation(100);
+    // Start with no celebrities; they will be discovered over time
+    setCelebrities([]);
+    // Clear localStorage
+    localStorage.removeItem('arena_chars_v8');
+    localStorage.removeItem('arena_history_v8');
+    localStorage.removeItem('arena_tournaments_v8');
+    localStorage.removeItem('arena_coins_v8');
+    localStorage.removeItem('arena_duel_count_v8');
+    localStorage.removeItem('arena_divs_v8');
+    localStorage.removeItem('arena_folders_v8');
+    localStorage.removeItem('arena_stadium_level');
+    localStorage.removeItem('arena_reputation');
+    localStorage.removeItem('arena_celebrities_v1');
+    // Show confirmation and go to chars tab
+    alert('Partida reiniciada. ¡Comienza de nuevo!');
+    setActiveTab('chars');
   };
 
   // Export/Import data helpers
@@ -507,6 +589,38 @@ export default function App() {
       alert('Archivo inválido. Asegúrate de seleccionar un JSON exportado del juego.');
     }
   };
+
+  const validateImageUrl = (url: string) => {
+    if (!url) return Promise.resolve(false);
+    return new Promise<boolean>((resolve) => {
+      try {
+        const img = new Image();
+        const clean = () => {
+          img.onload = null;
+          img.onerror = null;
+        };
+        const timeoutId = window.setTimeout(() => {
+          clean();
+          resolve(false);
+        }, 4000);
+        img.onload = () => {
+          window.clearTimeout(timeoutId);
+          clean();
+          resolve(true);
+        };
+        img.onerror = () => {
+          window.clearTimeout(timeoutId);
+          clean();
+          resolve(false);
+        };
+        img.src = url;
+      } catch (err) {
+        console.error('Error validating image:', err);
+        resolve(false);
+      }
+    });
+  };
+
 
   const computeAudience = (c1: Character, c2: Character | { name: string; level: number; avatarUrl: string; skills: any[] }, type: 'Normal' | 'Torneo' | 'Mundial') => {
     const stadium = getStadiumByLevel(stadiumLevel);
@@ -573,6 +687,62 @@ export default function App() {
     setCoins(prev => prev - cost);
     setCharacters(prev => [...prev, newChar]);
     setIsCreatingChar(false);
+  };
+
+  const handleSellCharacter = (charId: string, price: number) => {
+    setCharacters(prev => prev.filter(c => c.id !== charId));
+    setCoins(prev => prev + price);
+    if (selectedChar?.id === charId) setSelectedChar(null);
+  };
+
+  const handleBuyCosmetic = (charId: string, cosmeticId: string, price: number) => {
+    if (coins < price) return alert(`Necesitas ${price - coins} monedas más.`);
+    setCoins(prev => prev - price);
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== charId) return c;
+      return {
+        ...c,
+        cosmetics: c.cosmetics?.includes(cosmeticId) ? c.cosmetics : [...(c.cosmetics || []), cosmeticId],
+        equippedCosmetics: [...(c.equippedCosmetics || []), cosmeticId].slice(0, 3) // Auto-equip if under 3
+      };
+    }));
+  };
+
+  const handleEquipCosmetic = (charId: string, cosmeticId: string) => {
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== charId) return c;
+      const equipped = c.equippedCosmetics || [];
+      if (equipped.length >= 3) {
+        alert('Máximo 3 cosméticos equipados');
+        return c;
+      }
+      return {
+        ...c,
+        equippedCosmetics: [...equipped, cosmeticId]
+      };
+    }));
+    if (selectedChar?.id === charId) {
+      setSelectedChar(prev => prev ? {
+        ...prev,
+        equippedCosmetics: [...(prev.equippedCosmetics || []), cosmeticId]
+      } : null);
+    }
+  };
+
+  const handleUnequipCosmetic = (charId: string, cosmeticId: string) => {
+    setCharacters(prev => prev.map(c => {
+      if (c.id !== charId) return c;
+      return {
+        ...c,
+        equippedCosmetics: (c.equippedCosmetics || []).filter(id => id !== cosmeticId)
+      };
+    }));
+    if (selectedChar?.id === charId) {
+      setSelectedChar(prev => prev ? {
+        ...prev,
+        equippedCosmetics: (prev.equippedCosmetics || []).filter(id => id !== cosmeticId)
+      } : null);
+    }
   };
 
   const handleUpdateCharacter = (id: string, updates: Partial<Character>) => {
@@ -679,6 +849,23 @@ export default function App() {
     const currentLevel = tower.currentLevel;
     
     if (result === 'win') {
+      // Play tower pass sound on each successful level
+      if (soundManager.isEnabled()) {
+        try {
+          const audio = new Audio(towerpassUrl);
+          audio.volume = 0.7;
+          audio.play().catch(() => {});
+        } catch {}
+      }
+      // Play tower pass sound
+      if (soundManager.isEnabled()) {
+        try {
+          const audio = new Audio('/sounds/towerpass.wav');
+          audio.volume = 0.7;
+          audio.play().catch(() => {});
+        } catch {}
+      }
+      
       if (currentLevel === 10) {
         // Won the entire tower!
         alert('¡Completaste la Torre del Terror!');
@@ -748,6 +935,22 @@ export default function App() {
       const next = prev + delta;
       return Math.max(0, Math.min(5000, next));
     });
+
+    // 1% chance de que aparezca un famoso nuevo siguiendo la liga
+    if (Math.random() < 0.01) {
+      // Get celebrities that haven't been discovered yet
+      const undiscovered = ALL_CELEBRITIES.filter(
+        celeb => !celebrities.some(c => c.id === celeb.id)
+      );
+      if (undiscovered.length > 0) {
+        const newCeleb = undiscovered[Math.floor(Math.random() * undiscovered.length)];
+        setCelebrities(prev => [...prev, newCeleb]);
+        // Notification
+        setTimeout(() => {
+          alert(`🌟 ¡${newCeleb.nombre} ahora sigue la liga!`);
+        }, 100);
+      }
+    }
     
     let reward = 0;
     if (type === 'Mundial' && winnerId === c1.id) {
@@ -1112,6 +1315,11 @@ export default function App() {
     if (coins < TOURNEY_COST) return alert(`Necesitas ${TOURNEY_COST} monedas.`);
     if (pIds.length < 2) return alert("Min. 2 gladiadores.");
 
+    const allowedCupSizes = new Set([2, 4, 8, 16, 32]);
+    if (format === 'copa' && !allowedCupSizes.has(pIds.length)) {
+      return alert('Las copas solo pueden ser de 2, 4, 8, 16 o 32 participantes.');
+    }
+
     let matches: TournamentMatch[] = [];
     if (format === 'copa') {
       matches = buildKnockoutMatches(pIds, 'knockout', settings.twoLegs || false);
@@ -1389,47 +1597,7 @@ export default function App() {
              </div>
              <div className="h-4 w-px bg-slate-700"></div>
              <p className="text-slate-500 text-xs font-bold uppercase">Liga: {totalDuelsCount}/{LEAGUE_RESET_LIMIT} Duelos</p>
-             <button
-               onClick={() => {
-                  const nextSound = !soundEnabled;
-                  soundManager.setEnabled(nextSound);
-                  setSoundEnabled(nextSound);
-                  if (!nextSound) {
-                    soundManager.setBgmEnabled(false);
-                    setBgmEnabled(false);
-                  }
-               }}
-               className="ml-4 p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600 transition-colors text-sm"
-               title={soundEnabled ? 'Sonido ON' : 'Sonido OFF'}
-             >
-               <i className={`fas ${soundEnabled ? 'fa-volume-up' : 'fa-volume-mute'}`}></i>
-             </button>
-              <button
-                onClick={() => {
-                  const next = !bgmEnabled;
-                  setBgmEnabled(next);
-                  soundManager.setBgmEnabled(next);
-                }}
-                className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600 transition-colors text-sm"
-                title={bgmEnabled ? 'Música ON' : 'Música OFF'}
-              >
-                <i className={`fas ${bgmEnabled ? 'fa-music' : 'fa-music-slash'}`}></i>
-              </button>
-                <button
-                  onClick={handleExportData}
-                  className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600 transition-colors text-sm"
-                  title="Exportar datos a archivo JSON"
-                >
-                  <i className="fa-solid fa-file-export"></i>
-                </button>
-                <button
-                  onClick={handleImportClick}
-                  className="p-2 rounded-lg bg-slate-700/50 hover:bg-slate-600 transition-colors text-sm"
-                  title="Importar datos desde archivo JSON"
-                >
-                  <i className="fa-solid fa-file-import"></i>
-                </button>
-                <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
+             <input ref={fileInputRef} type="file" accept="application/json" className="hidden" onChange={handleImportFile} />
           </div>
         </div>
         <nav className="flex flex-wrap justify-center bg-slate-800 p-1.5 rounded-2xl border border-slate-700 shadow-xl gap-1">
@@ -1441,7 +1609,8 @@ export default function App() {
             { id: 'shop', icon: 'fa-cart-shopping', label: 'Tienda' },
             { id: 'organizer', icon: 'fa-clipboard-list', label: 'Organizador' },
             { id: 'hall', icon: 'fa-chart-bar', label: 'Estadísticas' },
-            { id: 'history', icon: 'fa-clock-rotate-left', label: 'Historial' }
+            { id: 'history', icon: 'fa-clock-rotate-left', label: 'Historial' },
+            { id: 'settings', icon: 'fa-gear', label: 'Configuración' }
           ].map(tab => (
             <button key={tab.id} onClick={() => { setActiveTab(tab.id as any); setSelectedTournament(null); }} className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${activeTab === tab.id && !selectedTournament ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-700'}`}>
               <i className={`fa-solid ${tab.icon}`}></i> <span className="hidden sm:inline">{tab.label}</span>
@@ -1479,7 +1648,15 @@ export default function App() {
         )}
 
         {activeTab === 'shop' && (
-          <ShopView onBuy={(n, level, skills, price) => handleAddCharacter(n, '', level, skills, price)} />
+          <ShopView
+            onBuy={(n, level, skills, price) => handleAddCharacter(n, '', level, skills, price)}
+            characters={characters}
+            onSell={handleSellCharacter}
+            coins={coins}
+            onBuyCosmetic={handleBuyCosmetic}
+            onEquipCosmetic={handleEquipCosmetic}
+            onUnequipCosmetic={handleUnequipCosmetic}
+          />
         )}
 
         {activeTab === 'tower' && (
@@ -1510,6 +1687,9 @@ export default function App() {
             coins={coins}
             history={history}
             onUpgradeStadium={handleUpgradeStadium}
+            celebrities={celebrities}
+            totalDuelsCount={totalDuelsCount}
+            characters={characters}
           />
         )}
 
@@ -1520,6 +1700,18 @@ export default function App() {
 
         {activeTab === 'history' && (
           <HistoryView history={history} characters={characters} />
+        )}
+
+        {activeTab === 'settings' && (
+          <SettingsView 
+            soundEnabled={soundEnabled}
+            bgmEnabled={bgmEnabled}
+            onToggleSound={handleToggleSound}
+            onToggleBgm={handleToggleBgm}
+            onExport={handleExportData}
+            onImport={handleImportClick}
+            onReset={handleResetGame}
+          />
         )}
       </main>
 
@@ -1536,8 +1728,18 @@ export default function App() {
                   const file = e.target.files?.[0];
                   if (file) {
                     const reader = new FileReader();
-                    reader.onload = (ev) => {
-                      (document.getElementById('new-char-avatar') as HTMLInputElement).value = ev.target?.result as string;
+                    reader.onload = async (ev) => {
+                      const dataUrl = ev.target?.result as string;
+                      const ok = await validateImageUrl(dataUrl);
+                      if (!ok) {
+                        alert('La imagen no es válida o está dañada.');
+                        (document.getElementById('new-char-avatar') as HTMLInputElement).value = '';
+                        return;
+                      }
+                      (document.getElementById('new-char-avatar') as HTMLInputElement).value = dataUrl;
+                    };
+                    reader.onerror = () => {
+                      alert('No se pudo leer la imagen.');
                     };
                     reader.readAsDataURL(file);
                   }
@@ -1550,10 +1752,18 @@ export default function App() {
               <p className="text-center text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Coste: {characters.length < 2 ? "GRATIS" : `${CHAR_COST} Monedas`}</p>
               <div className="flex gap-4 pt-2">
                 <button onClick={() => setIsCreatingChar(false)} className="flex-1 px-4 py-4 rounded-2xl bg-slate-800 text-slate-400 font-black uppercase text-xs border border-slate-700">Cancelar</button>
-                <button onClick={() => {
+                <button onClick={async () => {
                   const n = (document.getElementById('new-char-name') as HTMLInputElement).value;
                   const a = (document.getElementById('new-char-avatar') as HTMLInputElement).value;
-                  if (n) handleAddCharacter(n, a);
+                  if (!n) return;
+                  if (a) {
+                    const ok = await validateImageUrl(a);
+                    if (!ok) {
+                      alert('La imagen no se pudo cargar. Usa otra URL o archivo.');
+                      return;
+                    }
+                  }
+                  handleAddCharacter(n, a);
                 }} className="flex-1 px-4 py-4 rounded-2xl bg-indigo-600 text-white font-black uppercase text-xs shadow-lg active:scale-95">Invocar</button>
               </div>
             </div>
@@ -1582,19 +1792,72 @@ export default function App() {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 group bg-slate-800/50 p-2 rounded-xl border border-slate-700">
                     <i className="fa-solid fa-image text-slate-600"></i>
-                    <input type="text" id={`edit-avatar-${selectedChar.id}`} defaultValue={selectedChar.avatarUrl} onBlur={(e) => handleUpdateCharacter(selectedChar.id, { avatarUrl: e.target.value })} placeholder="URL de imagen..." className="text-[10px] bg-transparent text-slate-400 outline-none w-full" />
+                    <input
+                      type="text"
+                      id={`edit-avatar-${selectedChar.id}`}
+                      defaultValue={selectedChar.avatarUrl}
+                      onBlur={(e) => {
+                        try {
+                          const nextUrl = e.target.value.trim();
+                          if (!nextUrl) return;
+                          const current = selectedChar.avatarUrl;
+                          validateImageUrl(nextUrl).then(ok => {
+                            try {
+                              if (ok) {
+                                handleUpdateCharacter(selectedChar.id, { avatarUrl: nextUrl });
+                              } else {
+                                alert('La imagen no se pudo cargar. Intenta con otra URL.');
+                                e.target.value = current;
+                              }
+                            } catch (err) {
+                              console.error('Error validando imagen:', err);
+                              alert('Error al validar la imagen. La página continuará normalmente.');
+                              e.target.value = current;
+                            }
+                          }).catch(err => {
+                            console.error('Error en validación:', err);
+                            alert('Error al procesar la imagen. La página continuará normalmente.');
+                            e.target.value = current;
+                          });
+                        } catch (err) {
+                          console.error('Error inesperado en input:', err);
+                          alert('Error inesperado. La página continuará funcionando.');
+                        }
+                      }}
+                      placeholder="URL de imagen..."
+                      className="text-[10px] bg-transparent text-slate-400 outline-none w-full"
+                    />
                   </div>
                   <div className="relative">
                     <input type="file" id={`edit-file-${selectedChar.id}`} accept="image/*" onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          const dataUrl = ev.target?.result as string;
-                          handleUpdateCharacter(selectedChar.id, { avatarUrl: dataUrl });
-                          (document.getElementById(`edit-avatar-${selectedChar.id}`) as HTMLInputElement).value = dataUrl;
-                        };
-                        reader.readAsDataURL(file);
+                      try {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = async (ev) => {
+                            try {
+                              const dataUrl = ev.target?.result as string;
+                              const ok = await validateImageUrl(dataUrl);
+                              if (!ok) {
+                                alert('La imagen no se pudo cargar. Intenta con otra.');
+                                return;
+                              }
+                              handleUpdateCharacter(selectedChar.id, { avatarUrl: dataUrl });
+                              (document.getElementById(`edit-avatar-${selectedChar.id}`) as HTMLInputElement).value = dataUrl;
+                            } catch (err) {
+                              console.error('Error procesando imagen:', err);
+                              alert('Error al procesar la imagen. La página continuará normalmente.');
+                            }
+                          };
+                          reader.onerror = () => {
+                            console.error('Error leyendo archivo');
+                            alert('No se pudo leer la imagen. Intenta de nuevo.');
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      } catch (err) {
+                        console.error('Error en carga de archivo:', err);
+                        alert('Error inesperado. La página continuará funcionando.');
                       }
                     }} className="hidden" />
                     <label htmlFor={`edit-file-${selectedChar.id}`} className="flex items-center justify-center gap-2 w-full bg-slate-800/50 hover:bg-slate-700/50 border border-slate-700 rounded-xl px-3 py-2 text-slate-400 cursor-pointer transition-colors">
